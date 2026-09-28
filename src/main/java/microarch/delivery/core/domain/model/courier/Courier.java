@@ -63,8 +63,7 @@ public class Courier extends Aggregate<UUID> {
             throw new IllegalStateException("Order is already assigned to this courier");
         }
 
-        order.assign();
-        Assignment assignment = new Assignment(UUID.randomUUID(), order.getId(), order.getVolume(), order.getLocation());
+        Assignment assignment = new Assignment(order.getId(), order.getVolume(), order.getLocation());
         assignments.add(assignment);
         return assignment;
     }

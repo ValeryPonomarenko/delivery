@@ -25,7 +25,7 @@ class CourierTest {
         assertThat(courier.canTakeOrder(new Volume(1))).isFalse();
         assertThat(courier.getAssignments()).containsExactly(assignment);
         assertThat(assignment.getOrderId()).isEqualTo(order.getId());
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CREATED);
     }
 
     @Test
