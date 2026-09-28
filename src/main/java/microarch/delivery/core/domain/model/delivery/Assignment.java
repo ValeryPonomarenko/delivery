@@ -14,10 +14,9 @@ public class Assignment extends BaseEntity<UUID> {
     private Location location;
     private AssignmentStatus status;
 
-    public Assignment(UUID id, UUID orderId, Volume volume, Location location) {
-        super(id);
+    public Assignment(UUID orderId, Volume volume, Location location) {
+        super(UUID.randomUUID());
 
-        Error.throwIf(Guard.againstNullOrEmpty(id, "assignmentId"));
         Error.throwIf(Guard.againstNullOrEmpty(orderId, "orderId"));
 
         this.orderId = orderId;

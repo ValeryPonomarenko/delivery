@@ -12,14 +12,13 @@ class AssignmentTest {
 
     @Test
     void createsAssignedDeliveryTask() {
-        UUID assignmentId = UUID.randomUUID();
         UUID orderId = UUID.randomUUID();
         Volume volume = new Volume(3);
         Location location = new Location(2, 6);
 
-        Assignment assignment = new Assignment(assignmentId, orderId, volume, location);
+        Assignment assignment = new Assignment(orderId, volume, location);
 
-        assertThat(assignment.getId()).isEqualTo(assignmentId);
+        assertThat(assignment.getId()).isNotNull();
         assertThat(assignment.getOrderId()).isEqualTo(orderId);
         assertThat(assignment.getVolume()).isEqualTo(volume);
         assertThat(assignment.getLocation()).isEqualTo(location);
@@ -27,18 +26,17 @@ class AssignmentTest {
     }
 
     @Test
-    void considersAssignmentsWithSameIdEqual() {
-        UUID assignmentId = UUID.randomUUID();
+    void generatesUniqueIdentityForEveryAssignment() {
+        Assignment first = new Assignment(UUID.randomUUID(), new Volume(1), new Location(1, 1));
+        Assignment second = new Assignment(UUID.randomUUID(), new Volume(2), new Location(2, 2));
 
-        Assignment first = new Assignment(assignmentId, UUID.randomUUID(), new Volume(1), new Location(1, 1));
-        Assignment second = new Assignment(assignmentId, UUID.randomUUID(), new Volume(2), new Location(2, 2));
-
-        assertThat(first).isEqualTo(second).hasSameHashCodeAs(second);
+        assertThat(first.getId()).isNotEqualTo(second.getId());
+        assertThat(first).isNotEqualTo(second);
     }
 
     @Test
     void completesWhenCourierIsOneStepFromOrder() {
-        Assignment assignment = new Assignment(UUID.randomUUID(), UUID.randomUUID(), new Volume(1), new Location(2, 6));
+        Assignment assignment = new Assignment(UUID.randomUUID(), new Volume(1), new Location(2, 6));
 
         assignment.complete(new Location(3, 6));
 
@@ -47,7 +45,7 @@ class AssignmentTest {
 
     @Test
     void doesNotCompleteWhenCourierIsMoreThanOneStepFromOrder() {
-        Assignment assignment = new Assignment(UUID.randomUUID(), UUID.randomUUID(), new Volume(1), new Location(2, 6));
+        Assignment assignment = new Assignment(UUID.randomUUID(), new Volume(1), new Location(2, 6));
 
         assertThatThrownBy(() -> assignment.complete(new Location(4, 9)))
                 .isInstanceOf(IllegalStateException.class);
@@ -56,14 +54,11 @@ class AssignmentTest {
 
     @Test
     void rejectsMissingAssignmentFieldsAndNonPositiveVolume() {
-        UUID id = UUID.randomUUID();
         UUID orderId = UUID.randomUUID();
 
-        assertThatThrownBy(() -> new Assignment(null, orderId, new Volume(1), new Location(1, 1)))
+        assertThatThrownBy(() -> new Assignment(null, new Volume(1), new Location(1, 1)))
                 .isInstanceOf(DomainInvariantException.class);
-        assertThatThrownBy(() -> new Assignment(id, null, new Volume(1), new Location(1, 1)))
-                .isInstanceOf(DomainInvariantException.class);
-        assertThatThrownBy(() -> new Assignment(id, orderId, null, new Location(1, 1)))
+        assertThatThrownBy(() -> new Assignment(orderId, null, new Location(1, 1)))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> new Volume(0)).isInstanceOf(DomainInvariantException.class);
     }
