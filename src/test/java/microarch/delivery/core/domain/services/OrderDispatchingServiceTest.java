@@ -58,6 +58,17 @@ class OrderDispatchingServiceTest {
     }
 
     @Test
+    void keepsOrderCreatedWhenCourierListIsEmpty() {
+        Order order = new Order(UUID.randomUUID(), new Location(5, 5), new Volume(1));
+
+        var result = service.dispatch(order, List.of());
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.getError().getCode()).isEqualTo("courier.not.available");
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CREATED);
+    }
+
+    @Test
     void returnsBusinessErrorForOrderThatIsAlreadyAssigned() {
         Order order = new Order(UUID.randomUUID(), new Location(5, 5), new Volume(1));
         order.assign();
