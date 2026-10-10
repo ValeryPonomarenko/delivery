@@ -1,12 +1,17 @@
 package microarch.delivery.core.domain.model.delivery;
 
+import jakarta.persistence.Embeddable;
 import libs.ddd.ValueObject;
 import libs.errs.Error;
 import libs.errs.Guard;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 import java.util.Objects;
 
+@Embeddable
+@NoArgsConstructor(force = true, access = AccessLevel.PROTECTED)
 public final class Location extends ValueObject<Location> {
 
     public static final int MIN_COORDINATE = 1;
