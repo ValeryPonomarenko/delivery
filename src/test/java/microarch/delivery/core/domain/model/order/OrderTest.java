@@ -7,27 +7,26 @@ import org.junit.jupiter.api.Test;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class OrderTest {
 
     @Test
     void createsOrderInCreatedStatusAndAllowsValidTransitions() {
-        Order order = new Order(UUID.randomUUID(), new Location(2, 6), new Volume(4));
+        Order order = Order.create(UUID.randomUUID(), Location.mustCreate(2, 6), Volume.mustCreate(4)).getValueOrThrow();
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CREATED);
-        order.assign();
+        assertThat(order.assign().isSuccess()).isTrue();
         assertThat(order.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
-        order.complete();
+        assertThat(order.complete().isSuccess()).isTrue();
         assertThat(order.getStatus()).isEqualTo(OrderStatus.COMPLETED);
     }
 
     @Test
     void rejectsInvalidStatusTransitions() {
-        Order order = new Order(UUID.randomUUID(), new Location(2, 6), new Volume(4));
+        Order order = Order.create(UUID.randomUUID(), Location.mustCreate(2, 6), Volume.mustCreate(4)).getValueOrThrow();
 
-        assertThatThrownBy(order::complete).isInstanceOf(IllegalStateException.class);
-        order.assign();
-        assertThatThrownBy(order::assign).isInstanceOf(IllegalStateException.class);
+        assertThat(order.complete().isFailure()).isTrue();
+        assertThat(order.assign().isSuccess()).isTrue();
+        assertThat(order.assign().isFailure()).isTrue();
     }
 }

@@ -1,22 +1,20 @@
 package microarch.delivery.core.domain.model.delivery;
 
-import libs.errs.DomainInvariantException;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AssignmentTest {
 
     @Test
     void createsAssignedDeliveryTask() {
         UUID orderId = UUID.randomUUID();
-        Volume volume = new Volume(3);
-        Location location = new Location(2, 6);
+        Volume volume = Volume.mustCreate(3);
+        Location location = Location.mustCreate(2, 6);
 
-        Assignment assignment = new Assignment(orderId, volume, location);
+        Assignment assignment = Assignment.create(orderId, volume, location).getValueOrThrow();
 
         assertThat(assignment.getId()).isNotNull();
         assertThat(assignment.getOrderId()).isEqualTo(orderId);
@@ -27,8 +25,8 @@ class AssignmentTest {
 
     @Test
     void generatesUniqueIdentityForEveryAssignment() {
-        Assignment first = new Assignment(UUID.randomUUID(), new Volume(1), new Location(1, 1));
-        Assignment second = new Assignment(UUID.randomUUID(), new Volume(2), new Location(2, 2));
+        Assignment first = Assignment.create(UUID.randomUUID(), Volume.mustCreate(1), Location.mustCreate(1, 1)).getValueOrThrow();
+        Assignment second = Assignment.create(UUID.randomUUID(), Volume.mustCreate(2), Location.mustCreate(2, 2)).getValueOrThrow();
 
         assertThat(first.getId()).isNotEqualTo(second.getId());
         assertThat(first).isNotEqualTo(second);
@@ -36,19 +34,21 @@ class AssignmentTest {
 
     @Test
     void completesWhenCourierIsOneStepFromOrder() {
-        Assignment assignment = new Assignment(UUID.randomUUID(), new Volume(1), new Location(2, 6));
+        Assignment assignment = Assignment.create(UUID.randomUUID(), Volume.mustCreate(1), Location.mustCreate(2, 6)).getValueOrThrow();
 
-        assignment.complete(new Location(3, 6));
+        assertThat(assignment.complete(Location.mustCreate(3, 6)).isSuccess()).isTrue();
 
         assertThat(assignment.getStatus()).isEqualTo(AssignmentStatus.COMPLETED);
     }
 
     @Test
     void doesNotCompleteWhenCourierIsMoreThanOneStepFromOrder() {
-        Assignment assignment = new Assignment(UUID.randomUUID(), new Volume(1), new Location(2, 6));
+        Assignment assignment = Assignment.create(UUID.randomUUID(), Volume.mustCreate(1), Location.mustCreate(2, 6)).getValueOrThrow();
 
-        assertThatThrownBy(() -> assignment.complete(new Location(4, 9)))
-                .isInstanceOf(IllegalStateException.class);
+        var result = assignment.complete(Location.mustCreate(4, 9));
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.getError().getCode()).isEqualTo("courier.is.too.far.away");
         assertThat(assignment.getStatus()).isEqualTo(AssignmentStatus.ASSIGNED);
     }
 
@@ -56,10 +56,8 @@ class AssignmentTest {
     void rejectsMissingAssignmentFieldsAndNonPositiveVolume() {
         UUID orderId = UUID.randomUUID();
 
-        assertThatThrownBy(() -> new Assignment(null, new Volume(1), new Location(1, 1)))
-                .isInstanceOf(DomainInvariantException.class);
-        assertThatThrownBy(() -> new Assignment(orderId, null, new Location(1, 1)))
-                .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new Volume(0)).isInstanceOf(DomainInvariantException.class);
+        assertThat(Assignment.create(null, Volume.mustCreate(1), Location.mustCreate(1, 1)).isFailure()).isTrue();
+        assertThat(Assignment.create(orderId, null, Location.mustCreate(1, 1)).isFailure()).isTrue();
+        assertThat(Volume.create(0).isFailure()).isTrue();
     }
 }

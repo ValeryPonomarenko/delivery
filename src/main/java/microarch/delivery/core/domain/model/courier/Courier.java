@@ -12,7 +12,10 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import libs.ddd.Aggregate;
 import libs.errs.Error;
+import libs.errs.GeneralErrors;
 import libs.errs.Guard;
+import libs.errs.Result;
+import libs.errs.UnitResult;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import microarch.delivery.core.domain.model.delivery.Assignment;
@@ -31,7 +34,7 @@ import java.util.UUID;
 @NoArgsConstructor(force = true, access = AccessLevel.PROTECTED)
 public class Courier extends Aggregate<UUID> {
 
-    public static final Volume MAX_VOLUME = new Volume(20);
+    public static final Volume MAX_VOLUME = Volume.mustCreate(20);
 
     @Column(name = "name", nullable = false)
     private final String name;
@@ -51,13 +54,22 @@ public class Courier extends Aggregate<UUID> {
     @JoinColumn(name = "courier_id", nullable = false)
     private final List<Assignment> assignments = new ArrayList<>();
 
-    public Courier(String name, Location location) {
+    private Courier(String name, Location location) {
         super(UUID.randomUUID());
-        Error.throwIf(Guard.againstNullOrEmpty(name, "name"));
-
         this.name = name;
-        this.location = Objects.requireNonNull(location, "location must not be null");
+        this.location = location;
         this.maxVolume = MAX_VOLUME;
+    }
+
+    public static Result<Courier, Error> create(String name, Location location) {
+        Error error = Guard.combine(
+                Guard.againstNullOrEmpty(name, "name"),
+                location == null ? GeneralErrors.valueIsRequired("location") : null);
+        if (error != null) {
+            return Result.failure(error);
+        }
+
+        return Result.success(new Courier(name, location));
     }
 
     public String getName() {
@@ -81,37 +93,69 @@ public class Courier extends Aggregate<UUID> {
         return currentVolume() + orderVolume.getValue() <= maxVolume.getValue();
     }
 
-    public Assignment takeOrder(Order order) {
-        Objects.requireNonNull(order, "order must not be null");
+    public Result<Assignment, Error> takeOrder(Order order) {
+        if (order == null) {
+            return Result.failure(GeneralErrors.valueIsRequired("order"));
+        }
 
         if (!canTakeOrder(order.getVolume())) {
-            throw new IllegalStateException("Courier capacity would be exceeded");
+            return Result.failure(Error.of("courier.capacity.exceeded", "Courier capacity would be exceeded"));
         }
         if (hasAssignmentFor(order.getId())) {
-            throw new IllegalStateException("Order is already assigned to this courier");
+            return Result.failure(Error.of("order.already.assigned", "Order is already assigned to this courier"));
         }
 
-        Assignment assignment = new Assignment(order.getId(), order.getVolume(), order.getLocation());
-        assignments.add(assignment);
-        return assignment;
+        var assignmentResult = Assignment.create(order.getId(), order.getVolume(), order.getLocation());
+        if (assignmentResult.isFailure()) {
+            return Result.failure(assignmentResult.getError());
+        }
+        assignments.add(assignmentResult.getValue());
+        return assignmentResult;
     }
 
-    public void completeAssignment(UUID assignmentId) {
-        Error.throwIf(Guard.againstNullOrEmpty(assignmentId, "assignmentId"));
+    public UnitResult<Error> completeAssignment(UUID assignmentId) {
+        Error error = Guard.againstNullOrEmpty(assignmentId, "assignmentId");
+        if (error != null) {
+            return UnitResult.failure(error);
+        }
 
         Assignment assignment = assignments.stream()
                 .filter(candidate -> candidate.getId().equals(assignmentId))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Assignment was not found"));
-        assignment.complete(location);
+                .orElse(null);
+        if (assignment == null) {
+            return UnitResult.failure(Error.of("assignment.not.found", "Assignment was not found"));
+        }
+        return assignment.complete(location);
     }
 
-    public void moveTo(Location newLocation) {
-        Objects.requireNonNull(newLocation, "new location must not be null");
+    public UnitResult<Error> completeAssignmentForOrder(UUID orderId) {
+        Error error = Guard.againstNullOrEmpty(orderId, "orderId");
+        if (error != null) {
+            return UnitResult.failure(error);
+        }
+
+        Assignment assignment = assignments.stream()
+                .filter(candidate -> candidate.getOrderId().equals(orderId))
+                .findFirst()
+                .orElse(null);
+        if (assignment == null) {
+            return UnitResult.failure(Error.of("assignment.not.found", "Assignment was not found"));
+        }
+        return assignment.complete(location);
+    }
+
+    public UnitResult<Error> moveTo(Location newLocation) {
+        if (newLocation == null) {
+            return UnitResult.failure(GeneralErrors.valueIsRequired("location"));
+        }
         if (!location.isWithinOneStepOf(newLocation)) {
-            throw new IllegalArgumentException("Courier can move no more than one step at a time");
+            return UnitResult.failure(Error.of(
+                    "courier.location.cannot.be.changed",
+                    "Courier can move no more than one step at a time"));
         }
         location = newLocation;
+        return UnitResult.success();
     }
 
     private int currentVolume() {

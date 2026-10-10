@@ -23,8 +23,8 @@ class OrderRepositoryIntegrationTest extends PostgresIntegrationTestBase {
 
     @Test
     void storesAndFindsOrdersByIdAndStatus() {
-        Order created = new Order(UUID.randomUUID(), new Location(1, 1), new Volume(2));
-        Order assigned = new Order(UUID.randomUUID(), new Location(2, 2), new Volume(3));
+        Order created = Order.create(UUID.randomUUID(), Location.mustCreate(1, 1), Volume.mustCreate(2)).getValueOrThrow();
+        Order assigned = Order.create(UUID.randomUUID(), Location.mustCreate(2, 2), Volume.mustCreate(3)).getValueOrThrow();
         assigned.assign();
 
         repository.save(created);
@@ -37,7 +37,7 @@ class OrderRepositoryIntegrationTest extends PostgresIntegrationTestBase {
 
     @Test
     void updatesOrderStatus() {
-        Order order = new Order(UUID.randomUUID(), new Location(1, 1), new Volume(2));
+        Order order = Order.create(UUID.randomUUID(), Location.mustCreate(1, 1), Volume.mustCreate(2)).getValueOrThrow();
         repository.save(order);
         order.assign();
 

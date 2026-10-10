@@ -10,7 +10,10 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import libs.ddd.BaseEntity;
 import libs.errs.Error;
+import libs.errs.GeneralErrors;
 import libs.errs.Guard;
+import libs.errs.Result;
+import libs.errs.UnitResult;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -40,15 +43,24 @@ public class Assignment extends BaseEntity<UUID> {
     @Column(name = "status", nullable = false)
     private AssignmentStatus status;
 
-    public Assignment(UUID orderId, Volume volume, Location location) {
+    private Assignment(UUID orderId, Volume volume, Location location) {
         super(UUID.randomUUID());
-
-        Error.throwIf(Guard.againstNullOrEmpty(orderId, "orderId"));
-
         this.orderId = orderId;
         this.volume = Objects.requireNonNull(volume, "volume must not be null");
         this.location = Objects.requireNonNull(location, "location must not be null");
         this.status = AssignmentStatus.ASSIGNED;
+    }
+
+    public static Result<Assignment, Error> create(UUID orderId, Volume volume, Location location) {
+        Error error = Guard.combine(
+                Guard.againstNullOrEmpty(orderId, "orderId"),
+                volume == null ? GeneralErrors.valueIsRequired("volume") : null,
+                location == null ? GeneralErrors.valueIsRequired("location") : null);
+        if (error != null) {
+            return Result.failure(error);
+        }
+
+        return Result.success(new Assignment(orderId, volume, location));
     }
 
     public UUID getOrderId() {
@@ -67,16 +79,29 @@ public class Assignment extends BaseEntity<UUID> {
         return status;
     }
 
-    public void complete(Location courierLocation) {
-        Objects.requireNonNull(courierLocation, "courier location must not be null");
+    public UnitResult<Error> complete(Location courierLocation) {
+        if (courierLocation == null) {
+            return UnitResult.failure(GeneralErrors.valueIsRequired("courierLocation"));
+        }
 
         if (status != AssignmentStatus.ASSIGNED) {
-            throw new IllegalStateException("Only assigned deliveries can be completed");
+            return UnitResult.failure(Errors.assignmentCannotBeCompleted());
         }
         if (!location.isWithinOneStepOf(courierLocation)) {
-            throw new IllegalStateException("Courier is too far away to complete this delivery");
+            return UnitResult.failure(Errors.courierIsTooFarAway());
         }
 
         status = AssignmentStatus.COMPLETED;
+        return UnitResult.success();
+    }
+
+    private static final class Errors {
+        static Error assignmentCannotBeCompleted() {
+            return Error.of("assignment.cannot.be.completed", "Only assigned deliveries can be completed");
+        }
+
+        static Error courierIsTooFarAway() {
+            return Error.of("courier.is.too.far.away", "Courier is too far away to complete this delivery");
+        }
     }
 }

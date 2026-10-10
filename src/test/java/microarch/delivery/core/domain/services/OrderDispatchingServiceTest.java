@@ -18,9 +18,9 @@ class OrderDispatchingServiceTest {
 
     @Test
     void assignsOrderToNearestCourierWithAvailableCapacity() {
-        Order order = new Order(UUID.randomUUID(), new Location(5, 5), new Volume(4));
-        Courier distantCourier = new Courier("Alex", new Location(1, 1));
-        Courier nearestCourier = new Courier("Maria", new Location(4, 5));
+        Order order = Order.create(UUID.randomUUID(), Location.mustCreate(5, 5), Volume.mustCreate(4)).getValueOrThrow();
+        Courier distantCourier = Courier.create("Alex", Location.mustCreate(1, 1)).getValueOrThrow();
+        Courier nearestCourier = Courier.create("Maria", Location.mustCreate(4, 5)).getValueOrThrow();
 
         var result = service.dispatch(order, List.of(distantCourier, nearestCourier));
 
@@ -33,10 +33,10 @@ class OrderDispatchingServiceTest {
 
     @Test
     void skipsFullCourierAndAssignsOrderToNextSuitableCourier() {
-        Courier fullCourier = new Courier("Alex", new Location(5, 4));
-        fullCourier.takeOrder(new Order(UUID.randomUUID(), new Location(5, 4), new Volume(20)));
-        Courier availableCourier = new Courier("Maria", new Location(5, 3));
-        Order order = new Order(UUID.randomUUID(), new Location(5, 5), new Volume(1));
+        Courier fullCourier = Courier.create("Alex", Location.mustCreate(5, 4)).getValueOrThrow();
+        fullCourier.takeOrder(Order.create(UUID.randomUUID(), Location.mustCreate(5, 4), Volume.mustCreate(20)).getValueOrThrow());
+        Courier availableCourier = Courier.create("Maria", Location.mustCreate(5, 3)).getValueOrThrow();
+        Order order = Order.create(UUID.randomUUID(), Location.mustCreate(5, 5), Volume.mustCreate(1)).getValueOrThrow();
 
         var result = service.dispatch(order, List.of(fullCourier, availableCourier));
 
@@ -46,9 +46,9 @@ class OrderDispatchingServiceTest {
 
     @Test
     void returnsBusinessErrorWhenNoCourierCanTakeOrder() {
-        Courier fullCourier = new Courier("Alex", new Location(5, 4));
-        fullCourier.takeOrder(new Order(UUID.randomUUID(), new Location(5, 4), new Volume(20)));
-        Order order = new Order(UUID.randomUUID(), new Location(5, 5), new Volume(1));
+        Courier fullCourier = Courier.create("Alex", Location.mustCreate(5, 4)).getValueOrThrow();
+        fullCourier.takeOrder(Order.create(UUID.randomUUID(), Location.mustCreate(5, 4), Volume.mustCreate(20)).getValueOrThrow());
+        Order order = Order.create(UUID.randomUUID(), Location.mustCreate(5, 5), Volume.mustCreate(1)).getValueOrThrow();
 
         var result = service.dispatch(order, List.of(fullCourier));
 
@@ -59,7 +59,7 @@ class OrderDispatchingServiceTest {
 
     @Test
     void keepsOrderCreatedWhenCourierListIsEmpty() {
-        Order order = new Order(UUID.randomUUID(), new Location(5, 5), new Volume(1));
+        Order order = Order.create(UUID.randomUUID(), Location.mustCreate(5, 5), Volume.mustCreate(1)).getValueOrThrow();
 
         var result = service.dispatch(order, List.of());
 
@@ -70,10 +70,10 @@ class OrderDispatchingServiceTest {
 
     @Test
     void returnsBusinessErrorForOrderThatIsAlreadyAssigned() {
-        Order order = new Order(UUID.randomUUID(), new Location(5, 5), new Volume(1));
+        Order order = Order.create(UUID.randomUUID(), Location.mustCreate(5, 5), Volume.mustCreate(1)).getValueOrThrow();
         order.assign();
 
-        var result = service.dispatch(order, List.of(new Courier("Alex", new Location(5, 4))));
+        var result = service.dispatch(order, List.of(Courier.create("Alex", Location.mustCreate(5, 4)).getValueOrThrow()));
 
         assertThat(result.isFailure()).isTrue();
         assertThat(result.getError().getCode()).isEqualTo("order.cannot.be.dispatched");

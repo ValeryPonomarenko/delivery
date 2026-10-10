@@ -11,18 +11,17 @@ import org.junit.jupiter.api.Test;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CourierTest {
 
     @Test
     void takesOrderWhenTotalVolumeDoesNotExceedTwentyLitres() {
-        Courier courier = new Courier("Alex", new Location(1, 1));
-        Order order = new Order(UUID.randomUUID(), new Location(2, 1), new Volume(20));
+        Courier courier = Courier.create("Alex", Location.mustCreate(1, 1)).getValueOrThrow();
+        Order order = Order.create(UUID.randomUUID(), Location.mustCreate(2, 1), Volume.mustCreate(20)).getValueOrThrow();
 
-        Assignment assignment = courier.takeOrder(order);
+        Assignment assignment = courier.takeOrder(order).getValueOrThrow();
 
-        assertThat(courier.canTakeOrder(new Volume(1))).isFalse();
+        assertThat(courier.canTakeOrder(Volume.mustCreate(1))).isFalse();
         assertThat(courier.getAssignments()).containsExactly(assignment);
         assertThat(assignment.getOrderId()).isEqualTo(order.getId());
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CREATED);
@@ -30,44 +29,47 @@ class CourierTest {
 
     @Test
     void cannotTakeOrderThatExceedsRemainingCapacity() {
-        Courier courier = new Courier("Alex", new Location(1, 1));
-        courier.takeOrder(new Order(UUID.randomUUID(), new Location(2, 1), new Volume(15)));
+        Courier courier = Courier.create("Alex", Location.mustCreate(1, 1)).getValueOrThrow();
+        courier.takeOrder(Order.create(UUID.randomUUID(), Location.mustCreate(2, 1), Volume.mustCreate(15)).getValueOrThrow());
 
-        assertThatThrownBy(() -> courier.takeOrder(
-                new Order(UUID.randomUUID(), new Location(3, 1), new Volume(6))))
-                .isInstanceOf(IllegalStateException.class);
+        var result = courier.takeOrder(
+                Order.create(UUID.randomUUID(), Location.mustCreate(3, 1), Volume.mustCreate(6)).getValueOrThrow());
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.getError().getCode()).isEqualTo("courier.capacity.exceeded");
     }
 
     @Test
     void completesAssignmentOnlyWhenCourierIsAtMostOneStepAway() {
-        Courier courier = new Courier("Alex", new Location(1, 1));
+        Courier courier = Courier.create("Alex", Location.mustCreate(1, 1)).getValueOrThrow();
         Assignment assignment = courier.takeOrder(
-                new Order(UUID.randomUUID(), new Location(2, 1), new Volume(1)));
+                Order.create(UUID.randomUUID(), Location.mustCreate(2, 1), Volume.mustCreate(1)).getValueOrThrow()).getValueOrThrow();
 
-        courier.completeAssignment(assignment.getId());
+        assertThat(courier.completeAssignment(assignment.getId()).isSuccess()).isTrue();
 
         assertThat(assignment.getStatus()).isEqualTo(AssignmentStatus.COMPLETED);
     }
 
     @Test
     void doesNotCompleteAssignmentWhenCourierIsMoreThanOneStepAway() {
-        Courier courier = new Courier("Alex", new Location(1, 1));
+        Courier courier = Courier.create("Alex", Location.mustCreate(1, 1)).getValueOrThrow();
         Assignment assignment = courier.takeOrder(
-                new Order(UUID.randomUUID(), new Location(3, 1), new Volume(1)));
+                Order.create(UUID.randomUUID(), Location.mustCreate(3, 1), Volume.mustCreate(1)).getValueOrThrow()).getValueOrThrow();
 
-        assertThatThrownBy(() -> courier.completeAssignment(assignment.getId()))
-                .isInstanceOf(IllegalStateException.class);
+        var result = courier.completeAssignment(assignment.getId());
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.getError().getCode()).isEqualTo("courier.is.too.far.away");
         assertThat(assignment.getStatus()).isEqualTo(AssignmentStatus.ASSIGNED);
     }
 
     @Test
     void movesOnlyToSameOrNeighbouringLocation() {
-        Courier courier = new Courier("Alex", new Location(1, 1));
+        Courier courier = Courier.create("Alex", Location.mustCreate(1, 1)).getValueOrThrow();
 
-        courier.moveTo(new Location(1, 2));
+        assertThat(courier.moveTo(Location.mustCreate(1, 2)).isSuccess()).isTrue();
 
-        assertThat(courier.getLocation()).isEqualTo(new Location(1, 2));
-        assertThatThrownBy(() -> courier.moveTo(new Location(3, 2)))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(courier.getLocation()).isEqualTo(Location.mustCreate(1, 2));
+        assertThat(courier.moveTo(Location.mustCreate(3, 2)).isFailure()).isTrue();
     }
 }
