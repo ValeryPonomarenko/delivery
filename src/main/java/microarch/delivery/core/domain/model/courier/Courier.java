@@ -106,6 +106,16 @@ public class Courier extends Aggregate<UUID> {
         assignment.complete(location);
     }
 
+    public void completeAssignmentForOrder(UUID orderId) {
+        Error.throwIf(Guard.againstNullOrEmpty(orderId, "orderId"));
+
+        Assignment assignment = assignments.stream()
+                .filter(candidate -> candidate.getOrderId().equals(orderId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Assignment was not found"));
+        assignment.complete(location);
+    }
+
     public void moveTo(Location newLocation) {
         Objects.requireNonNull(newLocation, "new location must not be null");
         if (!location.isWithinOneStepOf(newLocation)) {
