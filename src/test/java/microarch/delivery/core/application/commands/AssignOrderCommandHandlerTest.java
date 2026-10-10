@@ -28,8 +28,8 @@ class AssignOrderCommandHandlerTest {
 
     @Test
     void assignsCreatedOrderAndSavesBothAggregates() {
-        Order order = new Order(UUID.randomUUID(), new Location(2, 1), new Volume(2));
-        Courier courier = new Courier("Alex", new Location(1, 1));
+        Order order = Order.create(UUID.randomUUID(), Location.mustCreate(2, 1), Volume.mustCreate(2)).getValueOrThrow();
+        Courier courier = Courier.create("Alex", Location.mustCreate(1, 1)).getValueOrThrow();
         when(orderRepository.findAnyCreated()).thenReturn(Optional.of(order));
         when(courierRepository.findAll()).thenReturn(List.of(courier));
 

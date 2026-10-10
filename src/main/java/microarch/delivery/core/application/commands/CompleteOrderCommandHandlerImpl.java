@@ -32,8 +32,15 @@ public class CompleteOrderCommandHandlerImpl implements CompleteOrderCommandHand
             return UnitResult.failure(GeneralErrors.notFound("order", command.getOrderId()));
         }
 
-        courier.get().completeAssignmentForOrder(order.get().getId());
-        order.get().complete();
+        var assignmentCompleted = courier.get().completeAssignmentForOrder(order.get().getId());
+        if (assignmentCompleted.isFailure()) {
+            return assignmentCompleted;
+        }
+
+        var orderCompleted = order.get().complete();
+        if (orderCompleted.isFailure()) {
+            return orderCompleted;
+        }
 
         courierRepository.save(courier.get());
         orderRepository.save(order.get());

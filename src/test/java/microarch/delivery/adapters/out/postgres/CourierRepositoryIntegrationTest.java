@@ -23,8 +23,8 @@ class CourierRepositoryIntegrationTest extends PostgresIntegrationTestBase {
 
     @Test
     void storesAndRestoresCourierAggregateWithAssignments() {
-        Courier courier = new Courier("Alex", new Location(1, 1));
-        courier.takeOrder(new Order(UUID.randomUUID(), new Location(2, 1), new Volume(2)));
+        Courier courier = Courier.create("Alex", Location.mustCreate(1, 1)).getValueOrThrow();
+        courier.takeOrder(Order.create(UUID.randomUUID(), Location.mustCreate(2, 1), Volume.mustCreate(2)).getValueOrThrow());
 
         repository.save(courier);
 

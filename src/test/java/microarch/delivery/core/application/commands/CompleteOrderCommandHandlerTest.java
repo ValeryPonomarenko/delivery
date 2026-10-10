@@ -16,6 +16,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -27,10 +28,10 @@ class CompleteOrderCommandHandlerTest {
 
     @Test
     void completesOrderAndCourierAssignment() {
-        Order order = new Order(UUID.randomUUID(), new Location(2, 1), new Volume(2));
+        Order order = Order.create(UUID.randomUUID(), Location.mustCreate(2, 1), Volume.mustCreate(2)).getValueOrThrow();
         order.assign();
-        Courier courier = new Courier("Alex", new Location(1, 1));
-        Assignment assignment = courier.takeOrder(order);
+        Courier courier = Courier.create("Alex", Location.mustCreate(1, 1)).getValueOrThrow();
+        Assignment assignment = courier.takeOrder(order).getValueOrThrow();
         when(courierRepository.findById(courier.getId())).thenReturn(Optional.of(courier));
         when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
         CompleteOrderCommand command = CompleteOrderCommand.create(courier.getId(), order.getId()).getValue();
@@ -42,5 +43,24 @@ class CompleteOrderCommandHandlerTest {
         assertThat(order.getStatus()).isEqualTo(OrderStatus.COMPLETED);
         verify(courierRepository).save(courier);
         verify(orderRepository).save(order);
+    }
+
+    @Test
+    void returnsBusinessErrorWhenCourierIsTooFarFromOrder() {
+        Order order = Order.create(UUID.randomUUID(), Location.mustCreate(3, 1), Volume.mustCreate(2)).getValueOrThrow();
+        order.assign();
+        Courier courier = Courier.create("Alex", Location.mustCreate(1, 1)).getValueOrThrow();
+        courier.takeOrder(order);
+        when(courierRepository.findById(courier.getId())).thenReturn(Optional.of(courier));
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+        CompleteOrderCommand command = CompleteOrderCommand.create(courier.getId(), order.getId()).getValue();
+
+        var result = handler.handle(command);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.getError().getCode()).isEqualTo("courier.is.too.far.away");
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
+        verify(courierRepository, never()).save(courier);
+        verify(orderRepository, never()).save(order);
     }
 }

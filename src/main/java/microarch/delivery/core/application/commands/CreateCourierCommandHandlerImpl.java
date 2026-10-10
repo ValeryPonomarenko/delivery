@@ -22,9 +22,17 @@ public class CreateCourierCommandHandlerImpl implements CreateCourierCommandHand
     @Override
     @Transactional
     public Result<UUID, Error> handle(CreateCourierCommand command) {
-        Courier courier = new Courier(command.getName(), new Location(1, 1));
+        var locationResult = Location.create(1, 1);
+        if (locationResult.isFailure()) {
+            return Result.failure(locationResult.getError());
+        }
 
-        courierRepository.save(courier);
-        return Result.success(courier.getId());
+        var courierResult = Courier.create(command.getName(), locationResult.getValue());
+        if (courierResult.isFailure()) {
+            return Result.failure(courierResult.getError());
+        }
+
+        courierRepository.save(courierResult.getValue());
+        return Result.success(courierResult.getValue().getId());
     }
 }

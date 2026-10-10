@@ -4,6 +4,7 @@ import jakarta.persistence.Embeddable;
 import libs.ddd.ValueObject;
 import libs.errs.Error;
 import libs.errs.Guard;
+import libs.errs.Result;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -20,12 +21,24 @@ public final class Location extends ValueObject<Location> {
     private final int x;
     private final int y;
 
-    public Location(int x, int y) {
-        Error.throwIf(Guard.againstOutOfRange(x, MIN_COORDINATE, MAX_COORDINATE, "x"));
-        Error.throwIf(Guard.againstOutOfRange(y, MIN_COORDINATE, MAX_COORDINATE, "y"));
-
+    private Location(int x, int y) {
         this.x = x;
         this.y = y;
+    }
+
+    public static Result<Location, Error> create(int x, int y) {
+        Error error = Guard.combine(
+                Guard.againstOutOfRange(x, MIN_COORDINATE, MAX_COORDINATE, "x"),
+                Guard.againstOutOfRange(y, MIN_COORDINATE, MAX_COORDINATE, "y"));
+        if (error != null) {
+            return Result.failure(error);
+        }
+
+        return Result.success(new Location(x, y));
+    }
+
+    public static Location mustCreate(int x, int y) {
+        return create(x, y).getValueOrThrow();
     }
 
     public int getX() {

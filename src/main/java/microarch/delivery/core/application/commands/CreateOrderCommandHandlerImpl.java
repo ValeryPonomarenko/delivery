@@ -24,12 +24,24 @@ public class CreateOrderCommandHandlerImpl implements CreateOrderCommandHandler 
     @Override
     @Transactional
     public Result<UUID, Error> handle(CreateOrderCommand command) {
-        Location location = new Location(
+        var locationResult = Location.create(
                 ThreadLocalRandom.current().nextInt(Location.MIN_COORDINATE, Location.MAX_COORDINATE + 1),
                 ThreadLocalRandom.current().nextInt(Location.MIN_COORDINATE, Location.MAX_COORDINATE + 1));
-        Order order = new Order(command.getOrderId(), location, new Volume(command.getVolume()));
+        if (locationResult.isFailure()) {
+            return Result.failure(locationResult.getError());
+        }
 
-        orderRepository.save(order);
-        return Result.success(order.getId());
+        var volumeResult = Volume.create(command.getVolume());
+        if (volumeResult.isFailure()) {
+            return Result.failure(volumeResult.getError());
+        }
+
+        var orderResult = Order.create(command.getOrderId(), locationResult.getValue(), volumeResult.getValue());
+        if (orderResult.isFailure()) {
+            return Result.failure(orderResult.getError());
+        }
+
+        orderRepository.save(orderResult.getValue());
+        return Result.success(orderResult.getValue().getId());
     }
 }

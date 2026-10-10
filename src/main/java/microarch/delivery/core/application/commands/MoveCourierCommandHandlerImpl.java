@@ -24,7 +24,11 @@ public class MoveCourierCommandHandlerImpl implements MoveCourierCommandHandler 
             return UnitResult.failure(GeneralErrors.notFound("courier", command.getCourierId()));
         }
 
-        courier.get().moveTo(command.getLocation());
+        var moved = courier.get().moveTo(command.getLocation());
+        if (moved.isFailure()) {
+            return moved;
+        }
+
         courierRepository.save(courier.get());
         return UnitResult.success();
     }

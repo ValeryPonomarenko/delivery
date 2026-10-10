@@ -10,13 +10,15 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import libs.ddd.Aggregate;
 import libs.errs.Error;
+import libs.errs.GeneralErrors;
 import libs.errs.Guard;
+import libs.errs.Result;
+import libs.errs.UnitResult;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import microarch.delivery.core.domain.model.delivery.Location;
 import microarch.delivery.core.domain.model.delivery.Volume;
 
-import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -39,13 +41,23 @@ public class Order extends Aggregate<UUID> {
     @Column(name = "status", nullable = false)
     private OrderStatus status;
 
-    public Order(UUID id, Location location, Volume volume) {
+    private Order(UUID id, Location location, Volume volume) {
         super(id);
-        Error.throwIf(Guard.againstNullOrEmpty(id, "orderId"));
-
-        this.location = Objects.requireNonNull(location, "location must not be null");
-        this.volume = Objects.requireNonNull(volume, "volume must not be null");
+        this.location = location;
+        this.volume = volume;
         this.status = OrderStatus.CREATED;
+    }
+
+    public static Result<Order, Error> create(UUID id, Location location, Volume volume) {
+        Error error = Guard.combine(
+                Guard.againstNullOrEmpty(id, "orderId"),
+                location == null ? GeneralErrors.valueIsRequired("location") : null,
+                volume == null ? GeneralErrors.valueIsRequired("volume") : null);
+        if (error != null) {
+            return Result.failure(error);
+        }
+
+        return Result.success(new Order(id, location, volume));
     }
 
     public Location getLocation() {
@@ -60,19 +72,21 @@ public class Order extends Aggregate<UUID> {
         return status;
     }
 
-    public void assign() {
-        changeStatus(OrderStatus.CREATED, OrderStatus.ASSIGNED);
+    public UnitResult<Error> assign() {
+        return changeStatus(OrderStatus.CREATED, OrderStatus.ASSIGNED);
     }
 
-    public void complete() {
-        changeStatus(OrderStatus.ASSIGNED, OrderStatus.COMPLETED);
+    public UnitResult<Error> complete() {
+        return changeStatus(OrderStatus.ASSIGNED, OrderStatus.COMPLETED);
     }
 
-    private void changeStatus(OrderStatus expectedStatus, OrderStatus newStatus) {
+    private UnitResult<Error> changeStatus(OrderStatus expectedStatus, OrderStatus newStatus) {
         if (status != expectedStatus) {
-            throw new IllegalStateException(
-                    "Order status must be " + expectedStatus + " before changing it to " + newStatus);
+            return UnitResult.failure(Error.of(
+                    "order.status.cannot.be.changed",
+                    "Order status must be " + expectedStatus + " before changing it to " + newStatus));
         }
         status = newStatus;
+        return UnitResult.success();
     }
 }
