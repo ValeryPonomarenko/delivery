@@ -5,28 +5,28 @@ import libs.errs.Result;
 import microarch.delivery.core.domain.model.delivery.Location;
 import microarch.delivery.core.domain.model.delivery.Volume;
 import microarch.delivery.core.domain.model.order.Order;
+import microarch.delivery.core.ports.GeoClient;
 import microarch.delivery.core.ports.OrderRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class CreateOrderCommandHandlerImpl implements CreateOrderCommandHandler {
 
     private final OrderRepository orderRepository;
+    private final GeoClient geoClient;
 
-    public CreateOrderCommandHandlerImpl(OrderRepository orderRepository) {
+    public CreateOrderCommandHandlerImpl(OrderRepository orderRepository, GeoClient geoClient) {
         this.orderRepository = orderRepository;
+        this.geoClient = geoClient;
     }
 
     @Override
     @Transactional
     public Result<UUID, Error> handle(CreateOrderCommand command) {
-        var locationResult = Location.create(
-                ThreadLocalRandom.current().nextInt(Location.MIN_COORDINATE, Location.MAX_COORDINATE + 1),
-                ThreadLocalRandom.current().nextInt(Location.MIN_COORDINATE, Location.MAX_COORDINATE + 1));
+        var locationResult = geoClient.getLocation(command.getStreet());
         if (locationResult.isFailure()) {
             return Result.failure(locationResult.getError());
         }
