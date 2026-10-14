@@ -18,6 +18,8 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import microarch.delivery.core.domain.model.delivery.Location;
 import microarch.delivery.core.domain.model.delivery.Volume;
+import microarch.delivery.core.domain.model.order.events.OrderAssignedDomainEvent;
+import microarch.delivery.core.domain.model.order.events.OrderCompletedDomainEvent;
 
 import java.util.UUID;
 
@@ -73,11 +75,23 @@ public class Order extends Aggregate<UUID> {
     }
 
     public UnitResult<Error> assign() {
-        return changeStatus(OrderStatus.CREATED, OrderStatus.ASSIGNED);
+        var statusChangeResult = changeStatus(OrderStatus.CREATED, OrderStatus.ASSIGNED);
+        if (statusChangeResult.isFailure()) {
+            return statusChangeResult;
+        }
+
+        raiseDomainEvent(new OrderAssignedDomainEvent(getId()));
+        return UnitResult.success();
     }
 
     public UnitResult<Error> complete() {
-        return changeStatus(OrderStatus.ASSIGNED, OrderStatus.COMPLETED);
+        var statusChangeResult = changeStatus(OrderStatus.ASSIGNED, OrderStatus.COMPLETED);
+        if (statusChangeResult.isFailure()) {
+            return statusChangeResult;
+        }
+
+        raiseDomainEvent(new OrderCompletedDomainEvent(getId()));
+        return UnitResult.success();
     }
 
     private UnitResult<Error> changeStatus(OrderStatus expectedStatus, OrderStatus newStatus) {

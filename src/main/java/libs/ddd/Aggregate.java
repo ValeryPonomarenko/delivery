@@ -5,6 +5,7 @@ import jakarta.persistence.Transient;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @MappedSuperclass
 public abstract class Aggregate<TId extends Comparable<TId>> extends BaseEntity<TId> implements AggregateRoot<TId> {
@@ -33,6 +34,6 @@ public abstract class Aggregate<TId extends Comparable<TId>> extends BaseEntity<
         if (domainEvents == null) {
             domainEvents = new ArrayList<>();
         }
-        domainEvents.add(domainEvent);
+        domainEvents.add(Objects.requireNonNull(domainEvent));
     }
 }

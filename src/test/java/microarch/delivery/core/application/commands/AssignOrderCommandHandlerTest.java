@@ -1,5 +1,6 @@
 package microarch.delivery.core.application.commands;
 
+import libs.ddd.DomainEventPublisher;
 import microarch.delivery.core.domain.model.courier.Courier;
 import microarch.delivery.core.domain.model.delivery.Location;
 import microarch.delivery.core.domain.model.delivery.Volume;
@@ -23,8 +24,9 @@ class AssignOrderCommandHandlerTest {
 
     private final OrderRepository orderRepository = mock(OrderRepository.class);
     private final CourierRepository courierRepository = mock(CourierRepository.class);
+    private final DomainEventPublisher domainEventPublisher = mock(DomainEventPublisher.class);
     private final AssignOrderCommandHandler handler = new AssignOrderCommandHandlerImpl(
-            orderRepository, courierRepository, new OrderDispatchingServiceImpl());
+            orderRepository, courierRepository, new OrderDispatchingServiceImpl(), domainEventPublisher);
 
     @Test
     void assignsCreatedOrderAndSavesBothAggregates() {
@@ -40,5 +42,6 @@ class AssignOrderCommandHandlerTest {
         assertThat(courier.getAssignments()).hasSize(1);
         verify(orderRepository).save(order);
         verify(courierRepository).save(courier);
+        verify(domainEventPublisher).publish(List.of(courier, order));
     }
 }
